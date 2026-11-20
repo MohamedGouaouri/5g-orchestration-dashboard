@@ -1,0 +1,36 @@
+# 5G orchestration & monitoring dashboard for an OAI CN5G + gNB deployment.
+# Joins the existing OAI docker networks so it can reach the xApp (ZMQ) and MySQL (UDR).
+services:
+  dashboard:
+    build: .
+    image: 5g-dashboard:latest
+    container_name: 5g-dashboard
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      MODE: live                    # auto | live | mock
+      AMF_CONTAINER: oai-amf
+      SMF_CONTAINER: oai-smf
+      UPF_CONTAINER: oai-upf
+      UPF_TUN_IFACE: tun0           # UE-side tunnel on the UPF (RX = uplink, TX = downlink)
+      UPF_N3_IFACE: eth0
+      GNB_CONTAINER: oai-gnb
+      GNB_CONF_PATH: /opt/oai-gnb/etc/gnb.conf
+      XAPP_ZMQ: tcp://monitor_xapp:5555
+      # Subscriber DB (UDR). Fill in the credentials of your oai-mysql container to enable it:
+      # MYSQL_DSN: "user:password@tcp(oai-mysql:3306)/oai_db"
+      MYSQL_DSN: ${MYSQL_DSN:-}
+      ENABLE_CONTROL: ${ENABLE_CONTROL:-false}   # true = allow NF restarts and subscriber provisioning
+    volumes:
+      # Docker API access: used for NF discovery/health, reading AMF/SMF logs, UPF counters and gNB config.
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - oai-public-net
+      - oai-e2-net
+
+networks:
+  oai-public-net:
+    external: true
+  oai-e2-net:
+    external: true
